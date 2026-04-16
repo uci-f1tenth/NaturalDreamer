@@ -1,6 +1,6 @@
 environmentName: CarRacing-v3
 runName: YourRunName
-seed: 1
+seed: 42
 
 gradientSteps: 60000
 replayRatio: 100
@@ -12,7 +12,7 @@ checkpointToLoad: 50k
 
 episodesBeforeStart: 5
 numInteractionEpisodes: 1
-numEvaluationEpisodes: 1
+numEvaluationEpisodes: 5
 
 dreamer:
     batchSize: 32
@@ -25,7 +25,7 @@ dreamer:
     encodedObsSize: 1024
 
     useContinuationPrediction: False
-    actorLR: 0.00004
+    actorLR: 0.00002
     criticLR: 0.0001
     worldModelLR: 0.0002
     gradientNormType: 2

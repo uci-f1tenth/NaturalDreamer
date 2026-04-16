@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -69,6 +70,7 @@ class RewardModel(nn.Module):
 
     def forward(self, x):
         mean, logStd = self.network(x).chunk(2, dim=-1)
+        logStd = torch.clamp(logStd, min=-5.0, max=2.0)
         return Normal(mean.squeeze(-1), torch.exp(logStd).squeeze(-1))
 
 
@@ -122,6 +124,50 @@ class DecoderConv(nn.Module):
         return self.network(x)
 
 
+class EncoderMLP(nn.Module):
+    """Encoder for vector observations (e.g. LIDAR + ego state from Rustoracer).
+    Maps an input vector of shape (obs_dim,) to a fixed-size embedding.
+    Mirrors the constructor signature of EncoderConv for easy swapping."""
+
+    def __init__(self, inputShape, outputSize, config):
+        super().__init__()
+        self.config = config
+        self.outputSize = outputSize
+        inputSize = inputShape[0]
+
+        self.network = sequentialModel1D(
+            inputSize,
+            [self.config.hiddenSize] * self.config.numLayers,
+            outputSize,
+            self.config.activation,
+            finishWithActivation=True,
+        )
+
+    def forward(self, x):
+        return self.network(x).view(-1, self.outputSize)
+
+
+class DecoderMLP(nn.Module):
+    """Decoder for vector observations. Reconstructs the original observation
+    vector from the Dreamer full state (recurrent + latent).
+    Mirrors the constructor signature of DecoderConv for easy swapping."""
+
+    def __init__(self, inputSize, outputShape, config):
+        super().__init__()
+        self.config = config
+        self.outputSize = outputShape[0]
+
+        self.network = sequentialModel1D(
+            inputSize,
+            [self.config.hiddenSize] * self.config.numLayers,
+            self.outputSize,
+            self.config.activation,
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+
 class Actor(nn.Module):
     def __init__(self, inputSize, actionSize, actionLow, actionHigh, device, config):
         super().__init__()
@@ -143,7 +189,10 @@ class Actor(nn.Module):
         action = sampleTanh*self.actionScale + self.actionBias
         if training:
             logprobs = distribution.log_prob(sample)
-            logprobs -= torch.log(self.actionScale*(1 - sampleTanh.pow(2)) + 1e-6)
+            # SAC-style numerically stable tanh correction:
+            # log(1 - tanh(x)^2) = 2*(log(2) - x - softplus(-2x))
+            logprobs -= 2.0 * (math.log(2.0) - sample - F.softplus(-2.0 * sample))
+            logprobs -= torch.log(self.actionScale)
             entropy = distribution.entropy()
             return action, logprobs.sum(-1), entropy.sum(-1)
         else:
@@ -158,4 +207,5 @@ class Critic(nn.Module):
 
     def forward(self, x):
         mean, logStd = self.network(x).chunk(2, dim=-1)
+        logStd = torch.clamp(logStd, min=-5.0, max=2.0)
         return Normal(mean.squeeze(-1), torch.exp(logStd).squeeze(-1))

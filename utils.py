@@ -10,6 +10,9 @@ import gymnasium as gym
 import csv
 import pandas as pd
 import plotly.graph_objects as pgo
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 def seedEverything(seed):
@@ -121,6 +124,55 @@ def plotMetrics(filename, title="", savePath="metricsPlot", window=10):
     if not savePath.endswith(".html"):
         savePath += ".html"
     fig.write_html(savePath)
+
+
+def plotMetricsPNG(filename, savePath="plots", window=10):
+    if not filename.endswith(".csv"):
+        filename += ".csv"
+    data = pd.read_csv(filename)
+    x = data["gradientSteps"]
+
+    charts = [
+        {
+            "filename": "reward.png",
+            "title": "Total Reward",
+            "columns": ["totalReward"],
+            "colors": ["#2196F3"],
+        },
+        {
+            "filename": "world_model_loss.png",
+            "title": "World Model Losses",
+            "columns": ["reconstructionLoss", "rewardPredictorLoss", "klLoss"],
+            "colors": ["#FF5722", "#4CAF50", "#9C27B0"],
+        },
+        {
+            "filename": "actor_critic_loss.png",
+            "title": "Actor & Critic",
+            "columns": ["actorLoss", "criticLoss", "entropies"],
+            "colors": ["#FF9800", "#00BCD4", "#E91E63"],
+        },
+    ]
+
+    os.makedirs(savePath, exist_ok=True)
+    generated = []
+    for chart in charts:
+        fig, ax = plt.subplots(figsize=(14, 5))
+        for col, color in zip(chart["columns"], chart["colors"]):
+            if col not in data.columns:
+                continue
+            ax.plot(x, data[col], color=color, alpha=0.2, linewidth=0.5)
+            smoothed = data[col].rolling(window=window, min_periods=1).mean()
+            ax.plot(x, smoothed, color=color, linewidth=2, label=col)
+        ax.set_title(chart["title"], fontsize=16)
+        ax.set_xlabel("Gradient Steps")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        filepath = os.path.join(savePath, chart["filename"])
+        fig.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        generated.append(filepath)
+
+    return generated
 
 
 def sequentialModel1D(inputSize, hiddenSizes, outputSize, activationFunction="Tanh", finishWithActivation=False):

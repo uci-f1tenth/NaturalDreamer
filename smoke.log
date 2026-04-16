@@ -1,0 +1,21 @@
+envProperties: obs (133,), action size 2, actionLow [-1.0, -1.0], actionHigh [1.0, 1.0]
+Training:   0%|          | 0/2000 [00:00<?, ?step/s]Traceback (most recent call last):
+  File "/Users/ritali/codespace/F1tenth/NaturalDreamer/main.py", line 94, in <module>
+    main(parser.parse_args().config)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ritali/codespace/F1tenth/NaturalDreamer/main.py", line 56, in main
+    initialStates, worldModelMetrics    = dreamer.worldModelTraining(sampledData)
+                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/ritali/codespace/F1tenth/NaturalDreamer/dreamer.py", line 109, in worldModelTraining
+    continueLoss         = nn.BCELoss(continueDistribution.probs, 1 - data.dones[:, 1:])
+  File "/Users/ritali/codespace/F1tenth/rustoracer/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py", line 57, in __init__
+    super().__init__(size_average, reduce, reduction)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ritali/codespace/F1tenth/rustoracer/.venv/lib/python3.14/site-packages/torch/nn/modules/loss.py", line 44, in __init__
+    self.reduction: str = _Reduction.legacy_get_string(size_average, reduce)
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ritali/codespace/F1tenth/rustoracer/.venv/lib/python3.14/site-packages/torch/nn/_reduction.py", line 44, in legacy_get_string
+    if size_average and reduce:
+       ^^^^^^^^^^^^
+RuntimeError: Boolean value of Tensor with more than one value is ambiguous
+Training:   0%|          | 0/2000 [00:00<?, ?step/s]

@@ -1,0 +1,104 @@
+# Smoke test config — small-scale local verification before scaling to CUDA machine.
+# Runs on Mac CPU in ~30-40 min. Checks: no NaN, reward trend upward, entropy decays.
+environmentName: Rustoracer
+runName: smoke_test
+seed: 42
+
+# ============ Rustoracer-specific settings ============
+mapYaml: /Users/ritali/codespace/F1tenth/rustoracer/maps/my_map.yaml
+maxSteps: 10000
+
+# ============ Training schedule (SMOKE TEST) ============
+gradientSteps: 2000           # Reduced from 100000 for quick local check
+replayRatio: 4
+saveMetrics: True
+saveCheckpoints: True
+checkpointInterval: 500       # More frequent eval to see trend (4 checkpoints total)
+resume: False
+checkpointToLoad: ""
+
+episodesBeforeStart: 50
+numInteractionEpisodes: 1
+numEvaluationEpisodes: 2      # Fewer eval episodes to save CPU time
+
+dreamer:
+    observationType: vector
+
+    batchSize: 32
+    batchLength: 64
+    imaginationHorizon: 15
+
+    recurrentSize: 256
+    latentLength: 16
+    latentClasses: 16
+    encodedObsSize: 256
+
+    useContinuationPrediction: True
+
+    actorLR: 0.0001
+    criticLR: 0.0003
+    worldModelLR: 0.0005
+    gradientNormType: 2
+    gradientClip: 1.0
+
+    discount: 0.99
+    lambda_: 0.95
+    freeNats: 1
+    betaPrior: 0.5
+    betaPosterior: 0.1
+    entropyScale: 0.001
+
+    buffer:
+        capacity: 100000
+
+    encoder:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    decoder:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    recurrentModel:
+        hiddenSize: 200
+        activation: ELU
+
+    priorNet:
+        hiddenSize: 200
+        numLayers: 2
+        activation: ELU
+        uniformMix: 0.01
+
+    posteriorNet:
+        hiddenSize: 200
+        numLayers: 2
+        activation: ELU
+        uniformMix: 0.01
+
+    reward:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    continuation:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    actor:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    critic:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+folderNames:
+    metricsFolder: metrics
+    plotsFolder: plots
+    checkpointsFolder: checkpoints
+    videosFolder: videos

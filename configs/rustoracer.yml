@@ -1,0 +1,104 @@
+# Rustoracer (F1tenth) training configuration for NaturalDreamer.
+environmentName: Rustoracer
+runName: first_attempt
+seed: 42
+
+# ============ Rustoracer-specific settings ============
+mapYaml: maps/my_map.yaml     # Which map to train on (change to maps/berlin.yaml etc.)
+maxSteps: 10000               # Max steps per episode before truncation
+
+# ============ Training schedule ============
+gradientSteps: 100000         # Total gradient steps (reduce to 1000 for a quick test)
+replayRatio: 4                # Gradient steps per environment interaction batch (was 50 — too high for vector obs, caused overfitting to early crash data)
+saveMetrics: True
+saveCheckpoints: True
+checkpointInterval: 5000      # Save checkpoint and evaluation video every N steps
+resume: False
+checkpointToLoad: ""   # Set to e.g. "50k" and resume:True when resuming training
+
+episodesBeforeStart: 50       # Random exploration episodes before training starts (more diverse buffer before overfitting kicks in)
+numInteractionEpisodes: 1     # Real-env episodes per training iteration
+numEvaluationEpisodes: 5      # Episodes per evaluation checkpoint
+
+dreamer:
+    # *** Key setting: tells dreamer.py to use MLP instead of CNN ***
+    observationType: vector
+
+    batchSize: 32              # Sequences sampled per training step
+    batchLength: 64            # Timesteps per sequence
+    imaginationHorizon: 15     # How far ahead to dream
+
+    recurrentSize: 256         # GRU hidden size (CarRacing uses 512)
+    latentLength: 16           # Categorical latent dimensions
+    latentClasses: 16          # Classes per latent dimension (total: 16*16=256)
+    encodedObsSize: 256        # Encoder output size (CarRacing uses 1024)
+
+    useContinuationPrediction: True  # Predict episode termination (collision)
+
+    actorLR: 0.0001
+    criticLR: 0.0003
+    worldModelLR: 0.0005
+    gradientNormType: 2
+    gradientClip: 1.0          # Dreamer-V3 paper default (was 100 — effectively no clipping)
+
+    discount: 0.99
+    lambda_: 0.95
+    freeNats: 1
+    betaPrior: 0.5
+    betaPosterior: 0.1
+    entropyScale: 0.001
+
+    buffer:
+        capacity: 100000       # Much cheaper than images: ~104 MB vs ~4.6 GB
+
+    encoder:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU        # ELU avoids vanishing gradients better than Tanh
+
+    decoder:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    recurrentModel:
+        hiddenSize: 200
+        activation: ELU
+
+    priorNet:
+        hiddenSize: 200
+        numLayers: 2
+        activation: ELU
+        uniformMix: 0.01
+
+    posteriorNet:
+        hiddenSize: 200
+        numLayers: 2
+        activation: ELU
+        uniformMix: 0.01
+
+    reward:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    continuation:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    actor:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+    critic:
+        hiddenSize: 256
+        numLayers: 3
+        activation: ELU
+
+folderNames:
+    metricsFolder: metrics
+    plotsFolder: plots
+    checkpointsFolder: checkpoints
+    videosFolder: videos

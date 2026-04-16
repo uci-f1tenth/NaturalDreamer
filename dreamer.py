@@ -4,7 +4,8 @@ from torch.distributions import kl_divergence, Independent, OneHotCategoricalStr
 import numpy as np
 import os
 
-from networks import RecurrentModel, PriorNet, PosteriorNet, RewardModel, ContinueModel, EncoderConv, DecoderConv, Actor, Critic
+from networks import (RecurrentModel, PriorNet, PosteriorNet, RewardModel, ContinueModel,
+                      EncoderConv, DecoderConv, EncoderMLP, DecoderMLP, Actor, Critic)
 from utils import computeLambdaValues, Moments
 from buffer import ReplayBuffer
 import imageio
@@ -23,8 +24,15 @@ class Dreamer:
 
         self.actor           = Actor(self.fullStateSize, actionSize, actionLow, actionHigh, device,                                  config.actor          ).to(self.device)
         self.critic          = Critic(self.fullStateSize,                                                                            config.critic         ).to(self.device)
-        self.encoder         = EncoderConv(observationShape, self.config.encodedObsSize,                                             config.encoder        ).to(self.device)
-        self.decoder         = DecoderConv(self.fullStateSize, observationShape,                                                     config.decoder        ).to(self.device)
+        # Select encoder/decoder based on observation type in config.
+        # 'vector' -> MLP (Rustoracer), default 'image' -> CNN (CarRacing).
+        observationType = getattr(config, "observationType", "image")
+        if observationType == "vector":
+            self.encoder = EncoderMLP(observationShape, self.config.encodedObsSize, config.encoder).to(self.device)
+            self.decoder = DecoderMLP(self.fullStateSize, observationShape, config.decoder).to(self.device)
+        else:
+            self.encoder = EncoderConv(observationShape, self.config.encodedObsSize, config.encoder).to(self.device)
+            self.decoder = DecoderConv(self.fullStateSize, observationShape, config.decoder).to(self.device)
         self.recurrentModel  = RecurrentModel(config.recurrentSize, self.latentSize, actionSize,                                     config.recurrentModel ).to(self.device)
         self.priorNet        = PriorNet(config.recurrentSize, config.latentLength, config.latentClasses,                             config.priorNet       ).to(self.device)
         self.posteriorNet    = PosteriorNet(config.recurrentSize + config.encodedObsSize, config.latentLength, config.latentClasses, config.posteriorNet   ).to(self.device)
@@ -98,13 +106,19 @@ class Dreamer:
         
         if self.config.useContinuationPrediction:
             continueDistribution = self.continuePredictor(fullStates)
-            continueLoss         = nn.BCELoss(continueDistribution.probs, 1 - data.dones[:, 1:])
+            continueLoss         = -continueDistribution.log_prob((1 - data.dones[:, 1:]).float().squeeze(-1))
             worldModelLoss      += continueLoss.mean()
 
         self.worldModelOptimizer.zero_grad()
-        worldModelLoss.backward()
-        nn.utils.clip_grad_norm_(self.worldModelParameters, self.config.gradientClip, norm_type=self.config.gradientNormType)
-        self.worldModelOptimizer.step()
+        if torch.isfinite(worldModelLoss):
+            worldModelLoss.backward()
+            nn.utils.clip_grad_norm_(self.worldModelParameters, self.config.gradientClip, norm_type=self.config.gradientNormType)
+            self.worldModelOptimizer.step()
+        else:
+            self._nanSkipCount = getattr(self, "_nanSkipCount", 0) + 1
+            print(f"[NaN guard] worldModelLoss={worldModelLoss.item()}, skipping update (total={self._nanSkipCount})")
+            if self._nanSkipCount > 100:
+                raise RuntimeError("Too many non-finite losses - aborting training")
 
         klLossShiftForGraphing = (self.config.betaPrior + self.config.betaPosterior)*self.config.freeNats
         metrics = {
@@ -142,17 +156,29 @@ class Dreamer:
         actorLoss = -torch.mean(advantages.detach()*logprobs + self.config.entropyScale*entropies)
 
         self.actorOptimizer.zero_grad()
-        actorLoss.backward()
-        nn.utils.clip_grad_norm_(self.actor.parameters(), self.config.gradientClip, norm_type=self.config.gradientNormType)
-        self.actorOptimizer.step()
+        if torch.isfinite(actorLoss):
+            actorLoss.backward()
+            nn.utils.clip_grad_norm_(self.actor.parameters(), self.config.gradientClip, norm_type=self.config.gradientNormType)
+            self.actorOptimizer.step()
+        else:
+            self._nanSkipCount = getattr(self, "_nanSkipCount", 0) + 1
+            print(f"[NaN guard] actorLoss={actorLoss.item()}, skipping update (total={self._nanSkipCount})")
+            if self._nanSkipCount > 100:
+                raise RuntimeError("Too many non-finite losses - aborting training")
 
         valueDistributions  =  self.critic(fullStates[:, :-1].detach())
         criticLoss          = -torch.mean(valueDistributions.log_prob(lambdaValues.detach()))
 
         self.criticOptimizer.zero_grad()
-        criticLoss.backward()
-        nn.utils.clip_grad_norm_(self.critic.parameters(), self.config.gradientClip, norm_type=self.config.gradientNormType)
-        self.criticOptimizer.step()
+        if torch.isfinite(criticLoss):
+            criticLoss.backward()
+            nn.utils.clip_grad_norm_(self.critic.parameters(), self.config.gradientClip, norm_type=self.config.gradientNormType)
+            self.criticOptimizer.step()
+        else:
+            self._nanSkipCount = getattr(self, "_nanSkipCount", 0) + 1
+            print(f"[NaN guard] criticLoss={criticLoss.item()}, skipping update (total={self._nanSkipCount})")
+            if self._nanSkipCount > 100:
+                raise RuntimeError("Too many non-finite losses - aborting training")
 
         metrics = {
             "actorLoss"     : actorLoss.item(),
