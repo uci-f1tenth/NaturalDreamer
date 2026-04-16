@@ -5,3 +5,8 @@ imageio
 pandas
 plotly
 attridict
+tqdm
+pyyaml
+matplotlib
+rerun-sdk
+rustoracerpy

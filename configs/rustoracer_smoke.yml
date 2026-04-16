@@ -5,7 +5,7 @@ runName: smoke_test
 seed: 42
 
 # ============ Rustoracer-specific settings ============
-mapYaml: /Users/ritali/codespace/F1tenth/rustoracer/maps/my_map.yaml
+mapYaml: maps/my_map.yaml
 maxSteps: 10000
 
 # ============ Training schedule (SMOKE TEST) ============

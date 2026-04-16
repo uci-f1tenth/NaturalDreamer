@@ -3,6 +3,7 @@ checkpoints
 metrics
 plots
 videos
+venv/
 test.ipynb
 visualizations
 mainVisualizations.py

@@ -29,14 +29,60 @@ Environment steps are roughly 10x the gradient steps, so 60k gradient steps is a
 
 DreamerV3 usage examples have been shown in my [tutorial](https://www.youtube.com/watch?v=viXppDhx4R0).
 
-To run the code yourself:
-1. Clone the repo
-2. Install requirements.txt
-3. Run main.py
+### Setup
 
-For the list of available arguments check main.py.
+```bash
+git clone <this repo>
+cd NaturalDreamer
+pip install -r requirements.txt
+```
 
-Note: The code is being developed on Linux, and out of the box it works on Linux. There is a chance it runs on Windows, and if not, it could work with small changes, but for now it remains untested and unsupported.
+### CarRacing-v3 (image observations)
+
+```bash
+python main.py --config car-racing-v3.yml
+```
+
+### Rustoracer — F1tenth simulator (vector observations)
+
+NaturalDreamer supports Rustoracer, our F1tenth racing simulator. It uses LIDAR + velocity observations instead of images, so training is much faster and memory-efficient (~104 MB buffer vs ~4.6 GB for images).
+
+**Prerequisites:** Install the `rustoracerpy` package (already listed in `requirements.txt`). Maps are included in the `maps/` folder.
+
+**Step 1 — Smoke test on Mac (CPU, ~30–40 min)**
+
+Run this first to verify nothing is broken before committing to a long GPU run. Checks for NaN, reward trend, entropy decay.
+
+```bash
+python main.py --config rustoracer_smoke.yml
+```
+
+**Step 2 — Full training on a CUDA machine**
+
+```bash
+python main.py --config rustoracer.yml
+```
+
+**Available maps** (see `maps/` folder):
+
+| Map | Description |
+|-----|-------------|
+| `my_map` | Custom track (default) |
+| `berlin` | Berlin racetrack |
+| `levine` | Levine Hall indoor map |
+| `vegas` | Vegas circuit |
+| `skirk` | Skirk map |
+| `stata_basement` | Stata Center basement |
+
+To switch maps, edit `mapYaml` in the config file, e.g. `maps/berlin.yaml`.
+
+**Resuming training**
+
+Set `resume: True` and `checkpointToLoad: "50k"` in the config, then re-run the same command.
+
+For the list of available arguments check `main.py`.
+
+Note: The code is being developed on Linux/Mac. Windows is untested and unsupported.
 
 ## TODO
 

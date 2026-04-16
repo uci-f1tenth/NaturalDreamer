@@ -4,7 +4,7 @@ runName: first_attempt
 seed: 42
 
 # ============ Rustoracer-specific settings ============
-mapYaml: /home/hjc/coSpace/RitaWork/f1tenth/rustoracer/maps/my_map.yaml     # Which map to train on (change to maps/berlin.yaml etc.)
+mapYaml: maps/my_map.yaml     # Which map to train on (change to maps/berlin.yaml etc.)
 maxSteps: 2000                # Max steps per episode before truncation (was 10000; lowered to bound eval frame RAM)
 
 # ============ Training schedule ============
