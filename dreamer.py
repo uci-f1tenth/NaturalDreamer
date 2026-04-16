@@ -200,7 +200,11 @@ class Dreamer:
             observation = env.reset(seed= (seed + self.totalEpisodes if seed else None))
             encodedObservation = self.encoder(torch.from_numpy(observation).float().unsqueeze(0).to(self.device))
 
-            currentScore, stepCount, done, frames = 0, 0, False, []
+            currentScore, stepCount, done = 0, 0, False
+            videoWriter, tempVideoFilename = None, None
+            if saveVideo and i == 0:
+                tempVideoFilename = f"{filename}_inprogress.mp4"
+                videoWriter = imageio.get_writer(tempVideoFilename, fps=fps)
             while not done:
                 recurrentState      = self.recurrentModel(recurrentState, latentState, action)
                 latentState, _      = self.posteriorNet(torch.cat((recurrentState, encodedObservation.view(1, -1)), -1))
@@ -212,15 +216,15 @@ class Dreamer:
                 if not evaluation:
                     self.buffer.add(observation, actionNumpy, reward, nextObservation, done)
 
-                if saveVideo and i == 0:
+                if videoWriter is not None:
                     frame = env.render()
                     targetHeight = (frame.shape[0] + macroBlockSize - 1)//macroBlockSize*macroBlockSize # getting rid of imagio warning
                     targetWidth = (frame.shape[1] + macroBlockSize - 1)//macroBlockSize*macroBlockSize
-                    frames.append(np.pad(frame, ((0, targetHeight - frame.shape[0]), (0, targetWidth - frame.shape[1]), (0, 0)), mode='edge'))
+                    videoWriter.append_data(np.pad(frame, ((0, targetHeight - frame.shape[0]), (0, targetWidth - frame.shape[1]), (0, 0)), mode='edge'))
 
                 encodedObservation = self.encoder(torch.from_numpy(nextObservation).float().unsqueeze(0).to(self.device))
                 observation = nextObservation
-                
+
                 currentScore += reward
                 stepCount += 1
                 if done:
@@ -229,11 +233,9 @@ class Dreamer:
                         self.totalEpisodes += 1
                         self.totalEnvSteps += stepCount
 
-                    if saveVideo and i == 0:
-                        finalFilename = f"{filename}_reward_{currentScore:.0f}.mp4"
-                        with imageio.get_writer(finalFilename, fps=fps) as video:
-                            for frame in frames:
-                                video.append_data(frame)
+                    if videoWriter is not None:
+                        videoWriter.close()
+                        os.rename(tempVideoFilename, f"{filename}_reward_{currentScore:.0f}.mp4")
                     break
         return sum(scores)/numEpisodes if numEpisodes else None
     

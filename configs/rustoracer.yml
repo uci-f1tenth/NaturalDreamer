@@ -4,15 +4,16 @@ runName: first_attempt
 seed: 42
 
 # ============ Rustoracer-specific settings ============
-mapYaml: maps/my_map.yaml     # Which map to train on (change to maps/berlin.yaml etc.)
-maxSteps: 10000               # Max steps per episode before truncation
+mapYaml: /home/hjc/coSpace/RitaWork/f1tenth/rustoracer/maps/my_map.yaml     # Which map to train on (change to maps/berlin.yaml etc.)
+maxSteps: 2000                # Max steps per episode before truncation (was 10000; lowered to bound eval frame RAM)
 
 # ============ Training schedule ============
 gradientSteps: 100000         # Total gradient steps (reduce to 1000 for a quick test)
 replayRatio: 4                # Gradient steps per environment interaction batch (was 50 — too high for vector obs, caused overfitting to early crash data)
 saveMetrics: True
 saveCheckpoints: True
-checkpointInterval: 5000      # Save checkpoint and evaluation video every N steps
+checkpointInterval: 1000      # Save rolling _latest.pth every N steps (overwrites — for crash recovery)
+milestoneInterval: 5000       # Permanent named checkpoint (_5k.pth, _10k.pth, ...) + eval video every N steps
 resume: False
 checkpointToLoad: ""   # Set to e.g. "50k" and resume:True when resuming training
 

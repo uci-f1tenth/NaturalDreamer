@@ -15,7 +15,6 @@ def main(configFile):
     seedEverything(config.seed)
 
     runName                 = f"{config.environmentName}_{config.runName}"
-    checkpointToLoad        = os.path.join(config.folderNames.checkpointsFolder, f"{runName}_{config.checkpointToLoad}")
     metricsFilename         = os.path.join(config.folderNames.metricsFolder,        runName)
     plotFilename            = os.path.join(config.folderNames.plotsFolder,          runName)
     checkpointFilenameBase  = os.path.join(config.folderNames.checkpointsFolder,    runName)
@@ -43,6 +42,7 @@ def main(configFile):
 
     dreamer = Dreamer(observationShape, actionSize, actionLow, actionHigh, device, config.dreamer)
     if config.resume:
+        checkpointToLoad = os.path.join(config.folderNames.checkpointsFolder, f"{runName}_{config.checkpointToLoad}")
         dreamer.loadCheckpoint(checkpointToLoad)
 
     dreamer.environmentInteraction(env, config.episodesBeforeStart, seed=config.seed)
@@ -58,12 +58,15 @@ def main(configFile):
             dreamer.totalGradientSteps += 1
             progressBar.update(1)
 
-            if dreamer.totalGradientSteps % config.checkpointInterval == 0 and config.saveCheckpoints:
+            if config.saveCheckpoints and dreamer.totalGradientSteps % config.checkpointInterval == 0:
+                dreamer.saveCheckpoint(f"{checkpointFilenameBase}_latest")
+
+            if config.saveCheckpoints and dreamer.totalGradientSteps % config.milestoneInterval == 0:
                 suffix = f"{dreamer.totalGradientSteps/1000:.0f}k"
                 dreamer.saveCheckpoint(f"{checkpointFilenameBase}_{suffix}")
                 evaluationScore = dreamer.environmentInteraction(envEvaluation, config.numEvaluationEpisodes, seed=config.seed, evaluation=True, saveVideo=True, filename=f"{videoFilenameBase}_{suffix}")
                 progressBar.set_postfix({"eval": f"{evaluationScore:.1f}", "step": suffix})
-                print(f"\nSaved Checkpoint and Video at {suffix:>6} gradient steps. Evaluation score: {evaluationScore:>8.2f}")
+                print(f"\nSaved Milestone and Video at {suffix:>6} gradient steps. Evaluation score: {evaluationScore:>8.2f}")
 
         latestScore = dreamer.environmentInteraction(env, config.numInteractionEpisodes, seed=config.seed)
         progressBar.set_postfix({"reward": f"{latestScore:.1f}", "step": f"{dreamer.totalGradientSteps/1000:.0f}k"})
